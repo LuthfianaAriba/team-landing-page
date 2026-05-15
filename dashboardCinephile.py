@@ -40,6 +40,7 @@ class NavBar(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(20, 0, 20, 0)
+        layout.setSpacing(0)
 
         # ── Kiri: avatar + username ──
         self.username = "Guest"
@@ -63,17 +64,19 @@ class NavBar(QWidget):
         user_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
         user_lbl.clicked.connect(self._show_profile_menu)
 
-        left = QHBoxLayout()
-        left.addWidget(avatar)
-        left.addWidget(user_lbl)
-        left.setSpacing(4)
         left_w = QWidget()
-        left_w.setLayout(left)
+        left_w.setFixedWidth(250)
         left_w.setStyleSheet("background: transparent;")
-        layout.addWidget(left_w)
+        left_layout = QHBoxLayout(left_w)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(4)
+        left_layout.addWidget(avatar)
+        left_layout.addWidget(user_lbl)
+        left_layout.addStretch()
 
         # ── Tengah: pill nav ──
         pill = QWidget()
+        pill.setFixedHeight(34)
         pill.setStyleSheet("background: #2E2E2E; border-radius: 17px;")
         pill_layout = QHBoxLayout(pill)
         pill_layout.setContentsMargins(6, 3, 6, 3)
@@ -88,13 +91,13 @@ class NavBar(QWidget):
         for text, page, w in nav_items:
             active = (page == current_page)
             btn = QPushButton(text)
-            btn.setFixedSize(w, 30)
+            btn.setFixedSize(w, 28)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background: {'#E53935' if active else 'transparent'};
                     color: {'white' if active else '#AAAAAA'};
-                    border-radius: 15px;
+                    border-radius: 14px;
                     font-size: 11px; font-weight: bold;
                     border: none;
                 }}
@@ -102,10 +105,6 @@ class NavBar(QWidget):
             """)
             btn.clicked.connect(lambda _, p=page: self.app.show_page(p))
             pill_layout.addWidget(btn)
-
-        layout.addStretch()
-        layout.addWidget(pill)
-        layout.addStretch()
 
         # ── Kanan: search ──
         self.search_entry = QLineEdit()
@@ -123,12 +122,20 @@ class NavBar(QWidget):
         search_btn.setStyleSheet("background: #E53935; border-radius: 6px; color: white; font-size: 14px; border: none;")
         search_btn.clicked.connect(self._do_search)
 
-        right = QHBoxLayout()
-        right.addWidget(self.search_entry)
-        right.addWidget(search_btn)
         right_w = QWidget()
-        right_w.setLayout(right)
+        right_w.setFixedWidth(250)
         right_w.setStyleSheet("background: transparent;")
+        right_layout = QHBoxLayout(right_w)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(5)
+        right_layout.addStretch()
+        right_layout.addWidget(self.search_entry)
+        right_layout.addWidget(search_btn)
+
+        layout.addWidget(left_w)
+        layout.addStretch()
+        layout.addWidget(pill)
+        layout.addStretch()
         layout.addWidget(right_w)
 
     def _do_search(self):
@@ -202,6 +209,10 @@ class DashboardPage(QWidget):
         self.hero_label.setFixedHeight(450)
         self.hero_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.hero_label.setStyleSheet("background: #2A2A2A;")
+        self.hero_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
 
         hero_files = ["hero1.jpeg", "hero2.jpeg", "hero3.jpeg"]
         base = os.path.dirname(os.path.abspath(__file__))
@@ -210,29 +221,57 @@ class DashboardPage(QWidget):
             if os.path.exists(path):
                 try:
                     img = Image.open(path).convert("RGB")
-                    px = pil_to_qpixmap(img, (1400, 450))
+                    # Simpan pixmap resolusi asli tanpa resize paksa
+                    px = pil_to_qpixmap(img)
                     self._hero_pixmaps.append(px)
                 except: pass
 
         if self._hero_pixmaps:
-            self.hero_label.setPixmap(self._hero_pixmaps[0].scaled(
-                self.hero_label.width() or 1100, 450,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation
-            ))
             self._carousel_timer.start(3000)
+            QTimer.singleShot(0, self._refresh_hero)
 
         layout.addWidget(self.hero_label)
+
+    def _refresh_hero(self):
+        if not self._hero_pixmaps:
+            return
+        w = self.hero_label.width() or self.width() or 1100
+        h = 450
+        px = self._hero_pixmaps[self._current_hero]
+
+        # Scale gambar: fit ke dalam kotak w x h tanpa crop, pakai KeepAspectRatio
+        # Lalu padding kiri-kanan dengan background gelap otomatis via AlignCenter
+        scaled = px.scaled(
+            w, h,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+
+        # Kalau mau full width tanpa letterbox, pakai KeepAspectRatioByExpanding
+        # tapi crop vertikal (bukan horizontal) dengan crop center
+        if scaled.width() < w:
+            # Gambar terlalu kecil horizontal → expand by width, crop vertikal
+            scaled = px.scaled(
+                w, 99999,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            if scaled.height() > h:
+                # Crop tengah vertikal
+                y_off = (scaled.height() - h) // 2
+                scaled = scaled.copy(0, y_off, w, h)
+
+        self.hero_label.setPixmap(scaled)
 
     def _next_hero(self):
         if not self._hero_pixmaps:
             return
         self._current_hero = (self._current_hero + 1) % len(self._hero_pixmaps)
-        self.hero_label.setPixmap(self._hero_pixmaps[self._current_hero].scaled(
-            max(self.hero_label.width(), 100), 450,
-            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-            Qt.TransformationMode.SmoothTransformation
-        ))
+        self._refresh_hero()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._refresh_hero()
 
     def _build_movie_list(self, layout):
         container = QWidget()
@@ -245,7 +284,6 @@ class DashboardPage(QWidget):
         title.setStyleSheet("color: #111111; background: transparent;")
         vl.addWidget(title)
 
-        # Header
         header = QWidget()
         header.setStyleSheet("background: transparent;")
         hl = QHBoxLayout(header)
@@ -364,3 +402,4 @@ class DashboardPage(QWidget):
     def closeEvent(self, event):
         self._carousel_timer.stop()
         super().closeEvent(event)
+        
