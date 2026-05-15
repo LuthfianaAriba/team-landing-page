@@ -3,6 +3,7 @@ from collections import Counter
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PIL import Image
 
+from dashboardCinephile import NavBar
 
 BG_MAIN    = "#1A1A1A"
 TEXT_WHITE = "#FFFFFF"
@@ -47,7 +48,8 @@ class GenreAnalyzePage(QtWidgets.QWidget):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
-        root_layout.addWidget(self._build_nav())
+        # ── Pakai NavBar seragam ──
+        root_layout.addWidget(NavBar(self.app, "genreanalyze"))
 
         # Scroll area untuk body
         self._scroll = QtWidgets.QScrollArea()
@@ -120,86 +122,6 @@ class GenreAnalyzePage(QtWidgets.QWidget):
             lbl.setWordWrap(True)
             lbl.setMaximumWidth(wrap)
         return lbl
-
-    # ── NAV ───────────────────────────────────────────────────────────────────
-    def _build_nav(self):
-        nav = QtWidgets.QWidget()
-        nav.setFixedHeight(60)
-        nav.setStyleSheet("background-color: #111111;")
-
-        layout = QtWidgets.QHBoxLayout(nav)
-        layout.setContentsMargins(20, 0, 20, 0)
-
-        # Pills center
-        pill = QtWidgets.QWidget()
-        pill.setStyleSheet("background-color: #2E2E2E; border-radius: 20px;")
-        pill_layout = QtWidgets.QHBoxLayout(pill)
-        pill_layout.setContentsMargins(6, 3, 6, 3)
-        pill_layout.setSpacing(2)
-
-        nav_items = [
-            ("Home",           "dashboard",    False),
-            ("Genre Analysis", "genreanalyze", True),
-            ("Movie Table",    "movietable",   False),
-            ("Watchlist",      "watchlist",    False),
-        ]
-        for label, page, active in nav_items:
-            btn = QtWidgets.QPushButton(label)
-            btn.setFixedHeight(28)
-            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-            if active:
-                btn.setStyleSheet(f"""
-                    QPushButton {{ background-color: {ACCENT}; color: white;
-                        border-radius: 16px; font-family: 'Trebuchet MS';
-                        font-size: 11px; font-weight: bold; border: none; padding: 0 12px; }}
-                """)
-            else:
-                btn.setStyleSheet(f"""
-                    QPushButton {{ background-color: transparent; color: {TEXT_GRAY};
-                        border-radius: 16px; font-family: 'Trebuchet MS';
-                        font-size: 11px; font-weight: bold; border: none; padding: 0 12px; }}
-                    QPushButton:hover {{ background-color: #3E3E3E; color: white; }}
-                """)
-                p = page
-                btn.clicked.connect(lambda _, pg=p: self.app.show_page(pg))
-            pill_layout.addWidget(btn)
-
-        # Search right
-        search_w = QtWidgets.QWidget()
-        search_w.setStyleSheet("background: transparent;")
-        sl = QtWidgets.QHBoxLayout(search_w)
-        sl.setContentsMargins(0, 0, 0, 0)
-        sl.setSpacing(5)
-
-        self.search_entry = QtWidgets.QLineEdit()
-        self.search_entry.setPlaceholderText("Search Local...")
-        self.search_entry.setFixedSize(150, 32)
-        self.search_entry.setStyleSheet("""
-            QLineEdit { background-color: #222; color: white; border: 1px solid #444;
-                border-radius: 4px; padding: 0 8px; font-size: 12px; }
-        """)
-        self.search_entry.returnPressed.connect(
-            lambda: self.app.handle_local_search(self.search_entry.text())
-        )
-
-        search_btn = QtWidgets.QPushButton("🔍")
-        search_btn.setFixedSize(40, 32)
-        search_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: {ACCENT}; color: white; border: none; border-radius: 4px; }}
-            QPushButton:hover {{ background-color: #c0392b; }}
-        """)
-        search_btn.clicked.connect(
-            lambda: self.app.handle_local_search(self.search_entry.text())
-        )
-
-        sl.addWidget(self.search_entry)
-        sl.addWidget(search_btn)
-
-        layout.addWidget(pill, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        layout.addStretch()
-        layout.addWidget(search_w)
-
-        return nav
 
     # ── HERO ──────────────────────────────────────────────────────────────────
     def _build_hero(self):
@@ -286,7 +208,9 @@ class GenreAnalyzePage(QtWidgets.QWidget):
 
             lbl = self._label(f"{genre} ({count})", size=12, bold=True)
             lbl.setFixedWidth(140)
-            lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            lbl.setAlignment(
+                QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter
+            )
             row_layout.addWidget(lbl)
 
             bar_w = max(5, int((count / max_val) * 400))
@@ -316,8 +240,9 @@ class GenreAnalyzePage(QtWidgets.QWidget):
 
             layout.addWidget(self._label(name, size=32, bold=True, family="Helvetica"))
             layout.addSpacing(10)
-            layout.addWidget(self._label(self._get_genre_description(name),
-                                         size=13, color=TEXT_GRAY, wrap=650))
+            layout.addWidget(
+                self._label(self._get_genre_description(name), size=13, color=TEXT_GRAY, wrap=650)
+            )
             layout.addSpacing(15)
             layout.addWidget(self._label(f"Featured {name} Titles", size=12, bold=True))
             layout.addSpacing(15)
