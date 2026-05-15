@@ -1,0 +1,202 @@
+[
+    {
+        "title": "The Shawshank Redemption",
+        "year": "1994",
+        "genre": "Drama",
+        "rating": "9.3",
+        "status": "Plan to Watch",
+        "description": "Imprisoned in the 1940s for the double murder of his wife and her lover, upstanding banker Andy Dufresne begins a new life at the Shawshank prison, where he puts his accounting skills to work for an amoral warden. During his long stretch in prison, Dufresne comes to be admired by the other inmates -- including an older prisoner named Red -- for his integrity and unquenchable sense of hope.",
+        "platform_string": "Apple TV Store, Crunchyroll",
+        "poster_local": "posters/The_Shawshank_Redemption.jpg"
+    },
+    {
+        "title": "The Godfather",
+        "year": "1972",
+        "genre": "Crime, Drama",
+        "rating": "9.2",
+        "status": "Plan to Watch",
+        "description": "Spanning the years 1945 to 1955, a chronicle of the fictional Italian-American Corleone crime family. When organized crime family patriarch, Vito Corleone barely survives an attempt on his life, his youngest son, Michael steps in to take care of the would-be killers, launching a campaign of bloody revenge.",
+        "platform_string": "Apple TV Store, HBO Max, Crunchyroll",
+        "poster_local": "posters/The_Godfather.jpg"
+    },
+    {
+        "title": "The Dark Knight",
+        "year": "2008",
+        "genre": "Action, Crime, Drama",
+        "rating": "9.1",
+        "status": "Plan to Watch",
+        "description": "Batman raises the stakes in his war on crime. With the help of Lt. Jim Gordon and District Attorney Harvey Dent, Batman sets out to dismantle the remaining criminal organizations that plague the streets. The partnership proves to be effective, but they soon find themselves prey to a reign of chaos unleashed by a rising criminal mastermind known to the terrified citizens of Gotham as the Joker.",
+        "platform_string": "Apple TV Store, Catchplay, HBO Max, Crunchyroll",
+        "poster_local": "posters/The_Dark_Knight.jpg"
+    },
+    {
+        "title": "The Godfather Part II",
+        "year": "1974",
+        "genre": "Crime, Drama",
+        "rating": "9",
+        "status": "Plan to Watch",
+        "description": "In the continuing saga of the Corleone crime family, a young Vito Corleone grows up in Sicily and in 1910s New York. In the 1950s, Michael Corleone attempts to expand the family business into Las Vegas, Hollywood and Cuba.",
+        "platform_string": "Apple TV Store, HBO Max, Crunchyroll",
+        "poster_local": "posters/The_Godfather_Part_II.jpg"
+    },
+    {
+        "title": "12 Angry Men",
+        "year": "1957",
+        "genre": "Crime, Drama",
+        "rating": "9",
+        "status": "Plan to Watch",
+        "description": "The defense and the prosecution have rested and the jury is filing into the jury room to decide if a young Spanish-American is guilty or innocent of murdering his father. What begins as an open and shut case soon becomes a mini-drama of each of the jurors' prejudices and preconceptions about the trial, the accused, and each other.",
+        "platform_string": "Apple TV Store, Crunchyroll",
+        "poster_local": "posters/12_Angry_Men.jpg"
+    },
+    {
+        "title": "The Lord of the Rings: The Return of the King",
+        "year": "2003",
+        "genre": "Adventure, Drama, Fantasy",
+        "rating": "9",
+        "status": "Plan to Watch",
+        "description": "As armies mass for a final battle that will decide the fate of the world--and powerful, ancient forces of Light and Dark compete to determine the outcome--one member of the Fellowship of the Ring is revealed as the noble heir to the throne of the Kings of Men. Yet, the sole hope for triumph over evil lies with a brave hobbit, Frodo, who, accompanied by his loyal friend Sam and the hideous, wretched Gollum, ventures deep into the very dark heart of Mordor on his seemingly impossible quest to destroy the Ring of Power.",
+        "platform_string": "Apple TV Store, Amazon Prime Video, Catchplay, Crunchyroll, HBO Max",
+        "poster_local": "posters/The_Lord_of_the_Rings_The_Return_of_the_King.jpg"
+    },
+    {
+        "title": "Schindler&apos;s List",
+        "year": "1994",
+        "genre": "Biography, Drama, History",
+        "rating": "9",
+        "status": "Plan to Watch",
+        "description": "The true story of how businessman Oskar Schindler saved over a thousand Jewish lives from the Nazis while they worked as slaves in his factory during World War II.",
+        "platform_string": "fuboTV, MGM+ Amazon Channel, Apple TV Store, JustWatch, Amazon Video, Crunchyroll",
+        "poster_local": "posters/Schindleraposs_List.jpg"
+    },
+    {
+        "title": "The Lord of the Rings: The Fellowship of the Ring",
+        "year": "2001",
+        "genre": "Adventure, Drama, Fantasy",
+        "rating": "8.9",
+        "status": "Plan to Watch",
+        "description": "Young hobbit Frodo Baggins, after inheriting a mysterious ring from his uncle Bilbo, must leave his home in order to keep it from falling into the hands of its evil creator. Along the way, a fellowship is formed to protect the ringbearer and make sure that the ring arrives at its final destination: Mt. Doom, the only place where it can be destroyed.",
+        "platform_string": "Apple TV Store, Amazon Prime Video, Catchplay, Crunchyroll, HBO Max",
+        "poster_local": "posters/The_Lord_of_the_Rings_The_Fellowship_of_the_Ring.jpg"
+    },
+    {
+        "title": "Pulp Fiction",
+        "year": "1994",
+        "genre": "Crime, Drama",
+        "rating": "8.8",
+        "status": "Plan to Watch",
+        "description": "A burger-loving hit man, his philosophical partner, a drug-addled gangster's moll and a washed-up boxer converge in this sprawling, comedic crime caper. Their adventures unfurl in three stories that ingeniously trip back and forth in time.",
+        "platform_string": "Apple TV Store, HBO Max, Crunchyroll",
+        "poster_local": "posters/Pulp_Fiction.jpg"
+    },
+    {
+        "title": "Il buono, il brutto, il cattivo",
+        "year": "1967",
+        "genre": "Adventure, Drama, Western",
+        "rating": "8.8",
+        "status": "Plan to Watch",
+        "description": "While the Civil War rages on between the Union and the Confederacy, three men \u2013 a quiet loner, a ruthless hitman, and a Mexican bandit \u2013 comb the American Southwest in search of a strongbox containing $200,000 in stolen gold.",
+        "platform_string": "Apple TV Store, Crunchyroll",
+        "poster_local": "posters/Il_buono_il_brutto_il_cattivo.jpg"
+    },
+    {
+        "title": "The Lord of the Rings: The Two Towers",
+        "year": "2002",
+        "genre": "Adventure, Drama, Fantasy",
+        "rating": "8.8",
+        "status": "Plan to Watch",
+        "description": "Frodo Baggins and the other members of the Fellowship continue on their sacred quest to destroy the One Ring--but on separate paths. Their destinies lie at two towers--Orthanc Tower in Isengard, where the corrupt wizard Saruman awaits, and Sauron's fortress at Barad-dur, deep within the dark lands of Mordor. Frodo and Sam are trekking to Mordor to destroy the One Ring of Power while Gimli, Legolas and Aragorn search for the orc-captured Merry and Pippin. All along, nefarious wizard Saruman awaits the Fellowship members at the Orthanc Tower in Isengard.",
+        "platform_string": "Apple TV Store, Amazon Prime Video, Catchplay, Crunchyroll, HBO Max",
+        "poster_local": "posters/The_Lord_of_the_Rings_The_Two_Towers.jpg"
+    },
+    {
+        "title": "Forrest Gump",
+        "year": "1994",
+        "genre": "Drama, Romance",
+        "rating": "8.8",
+        "status": "Plan to Watch",
+        "description": "A man with a low IQ has accomplished great things in his life and been present during significant historic events\u2014in each case, far exceeding what anyone imagined he could do. But despite all he has achieved, his one true love eludes him.",
+        "platform_string": "Apple TV Store, Crunchyroll",
+        "poster_local": "posters/Forrest_Gump.jpg"
+    },
+    {
+        "title": "Fight Club",
+        "year": "1999",
+        "genre": "Crime, Drama, Thriller",
+        "rating": "8.8",
+        "status": "Plan to Watch",
+        "description": "A ticking-time-bomb insomniac and a slippery soap salesman channel primal male aggression into a shocking new form of therapy. Their concept catches on, with underground \"fight clubs\" forming in every town, until an eccentric gets in the way and ignites an out-of-control spiral toward oblivion.",
+        "platform_string": "Disney+, Netflix, Crunchyroll",
+        "poster_local": "posters/Fight_Club.jpg"
+    },
+    {
+        "title": "Inception",
+        "year": "2010",
+        "genre": "Action, Adventure, Sci-Fi",
+        "rating": "8.8",
+        "status": "Plan to Watch",
+        "description": "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a CEO, but his tragic past may doom the project and his team to disaster.",
+        "platform_string": "Apple TV Store, Catchplay, HBO Max, Crunchyroll",
+        "poster_local": "posters/Inception.jpg"
+    },
+    {
+        "title": "Star Wars: Episode V - The Empire Strikes Back",
+        "year": "1980",
+        "genre": "Action, Adventure, Fantasy",
+        "rating": "8.7",
+        "status": "Plan to Watch",
+        "description": "The epic saga continues as Luke Skywalker, in hopes of defeating the evil Galactic Empire, learns the ways of the Jedi from aging master Yoda. But Darth Vader is more determined than ever to capture Luke. Meanwhile, rebel leader Princess Leia, cocky Han Solo, Chewbacca, and droids C-3PO and R2-D2 are thrown into various stages of capture, betrayal and despair.",
+        "platform_string": "Disney+, Crunchyroll",
+        "poster_local": "posters/Star_Wars_Episode_V__The_Empire_Strikes_Back.jpg"
+    },
+    {
+        "title": "The Matrix",
+        "year": "1999",
+        "genre": "Action, Sci-Fi",
+        "rating": "8.7",
+        "status": "Plan to Watch",
+        "description": "Set in the 22nd century, The Matrix tells the story of a computer hacker who joins a group of underground insurgents fighting the vast and powerful computers who now rule the earth.",
+        "platform_string": "Apple TV Store, Catchplay, Crunchyroll",
+        "poster_local": "posters/The_Matrix.jpg"
+    },
+    {
+        "title": "GoodFellas",
+        "year": "1990",
+        "genre": "Biography, Crime, Drama",
+        "rating": "8.7",
+        "status": "Plan to Watch",
+        "description": "The true story of Henry Hill, a half-Irish, half-Sicilian Brooklyn kid who is adopted by neighbourhood gangsters at an early age and climbs the ranks of a Mafia family under the guidance of Jimmy Conway.",
+        "platform_string": "Apple TV Store, Crunchyroll",
+        "poster_local": "posters/GoodFellas.jpg"
+    },
+    {
+        "title": "Interstellar",
+        "year": "2014",
+        "genre": "Adventure, Drama, Sci-Fi",
+        "rating": "8.7",
+        "status": "Plan to Watch",
+        "description": "When Earth becomes uninhabitable in the future, a farmer and ex-NASA pilot, Joseph Cooper, is tasked to pilot a spacecraft, along with a team of researchers, to find a new planet for humans.",
+        "platform_string": "Apple TV Store, Catchplay, Crunchyroll",
+        "poster_local": "posters/Interstellar.jpg"
+    },
+    {
+        "title": "One Flew Over the Cuckoo&apos;s Nest",
+        "year": "1975",
+        "genre": "Drama",
+        "rating": "8.6",
+        "status": "Plan to Watch",
+        "description": "A petty criminal fakes insanity to serve his sentence in a mental ward rather than prison. He soon finds himself as a leader to the other patients\u2014and an enemy to the cruel, domineering nurse who runs the ward.",
+        "platform_string": "Apple TV Store, Crunchyroll",
+        "poster_local": "posters/One_Flew_Over_the_Cuckooaposs_Nest.jpg"
+    },
+    {
+        "title": "Se7en",
+        "year": "1995",
+        "genre": "Crime, Drama, Mystery",
+        "rating": "8.6",
+        "status": "Plan to Watch",
+        "description": "Two homicide detectives are on a desperate hunt for a serial killer whose crimes are based on the \"seven deadly sins\" in this dark and haunting film that takes viewers from the tortured remains of one victim to the next. The seasoned Det. Somerset researches each sin in an effort to get inside the killer's mind, while his novice partner, Mills, scoffs at his efforts to unravel the case.",
+        "platform_string": "Apple TV Store, Catchplay, Crunchyroll",
+        "poster_local": "posters/Se7en.jpg"
+    }
+]
