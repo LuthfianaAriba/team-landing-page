@@ -2,6 +2,7 @@ import os
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PIL import Image
 
+from dashboardCinephile import NavBar
 
 BG_MAIN    = "#1A1A1A"
 BG_LIGHT   = "#F4F4F4"
@@ -163,87 +164,15 @@ class MovietablePage(QtWidgets.QWidget):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
-        root_layout.addWidget(self._build_nav())
+        # ── Pakai NavBar seragam ──
+        root_layout.addWidget(NavBar(self.app, "movietable"))
+
         root_layout.addWidget(self._build_header())
         root_layout.addWidget(self._build_filter_row())
         root_layout.addWidget(self._build_table_area(), stretch=1)
         root_layout.addWidget(self._build_pagination())
 
-    def _build_nav(self):
-        nav = QtWidgets.QWidget()
-        nav.setFixedHeight(60)
-        nav.setStyleSheet("background-color: #111111;")
-
-        layout = QtWidgets.QHBoxLayout(nav)
-        layout.setContentsMargins(20, 0, 20, 0)
-
-        # Nav pills (center)
-        pill = QtWidgets.QWidget()
-        pill.setStyleSheet("background-color: #2E2E2E; border-radius: 20px;")
-        pill_layout = QtWidgets.QHBoxLayout(pill)
-        pill_layout.setContentsMargins(6, 3, 6, 3)
-        pill_layout.setSpacing(2)
-
-        nav_buttons = [
-            ("Home",           "dashboard",    False),
-            ("Genre Analysis", "genreanalyze", False),
-            ("Movie Table",    "movietable",   True),
-            ("Watchlist",      "watchlist",    False),
-        ]
-        for label, page, active in nav_buttons:
-            btn = QtWidgets.QPushButton(label)
-            btn.setFixedHeight(28)
-            btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
-            if active:
-                btn.setStyleSheet(f"""
-                    QPushButton {{ background-color: {ACCENT}; color: white;
-                        border-radius: 16px; font-family: 'Trebuchet MS';
-                        font-size: 11px; font-weight: bold; border: none; padding: 0 12px; }}
-                """)
-            else:
-                btn.setStyleSheet(f"""
-                    QPushButton {{ background-color: transparent; color: {TEXT_GRAY};
-                        border-radius: 16px; font-family: 'Trebuchet MS';
-                        font-size: 11px; font-weight: bold; border: none; padding: 0 12px; }}
-                    QPushButton:hover {{ background-color: #3E3E3E; color: white; }}
-                """)
-            if not active:
-                p = page
-                btn.clicked.connect(lambda _, pg=p: self.app.show_page(pg))
-            pill_layout.addWidget(btn)
-
-        # Search (right)
-        search_widget = QtWidgets.QWidget()
-        search_widget.setStyleSheet("background: transparent;")
-        search_layout = QtWidgets.QHBoxLayout(search_widget)
-        search_layout.setContentsMargins(0, 0, 0, 0)
-        search_layout.setSpacing(5)
-
-        self.search_entry = QtWidgets.QLineEdit()
-        self.search_entry.setPlaceholderText("Search...")
-        self.search_entry.setFixedSize(150, 32)
-        self.search_entry.setStyleSheet("""
-            QLineEdit { background-color: #222; color: white; border: 1px solid #444;
-                border-radius: 4px; padding: 0 8px; font-size: 12px; }
-        """)
-        self.search_entry.returnPressed.connect(lambda: self._search(self.search_entry.text()))
-
-        search_btn = QtWidgets.QPushButton("🔍")
-        search_btn.setFixedSize(40, 32)
-        search_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: {ACCENT}; color: white; border: none; border-radius: 4px; }}
-            QPushButton:hover {{ background-color: #c0392b; }}
-        """)
-        search_btn.clicked.connect(lambda: self._search(self.search_entry.text()))
-
-        search_layout.addWidget(self.search_entry)
-        search_layout.addWidget(search_btn)
-
-        layout.addWidget(pill, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        layout.addStretch()
-        layout.addWidget(search_widget)
-
-        return nav
+        self.render_table()
 
     def _build_header(self):
         header = QtWidgets.QLabel("Find your movie!")
@@ -272,7 +201,9 @@ class MovietablePage(QtWidgets.QWidget):
 
         # Genre label
         self._genre_label = QtWidgets.QLabel("All genres")
-        self._genre_label.setStyleSheet(f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 11px; background: transparent;")
+        self._genre_label.setStyleSheet(
+            f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 11px; background: transparent;"
+        )
         layout.addWidget(self._genre_label)
         layout.addSpacing(20)
 
@@ -286,7 +217,9 @@ class MovietablePage(QtWidgets.QWidget):
 
         # Sort label
         sort_lbl = QtWidgets.QLabel("Sort :")
-        sort_lbl.setStyleSheet(f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 12px; font-weight: bold; background: transparent;")
+        sort_lbl.setStyleSheet(
+            f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 12px; font-weight: bold; background: transparent;"
+        )
         layout.addWidget(sort_lbl)
         layout.addSpacing(8)
 
@@ -314,13 +247,14 @@ class MovietablePage(QtWidgets.QWidget):
 
         # Count label
         self._count_label = QtWidgets.QLabel("")
-        self._count_label.setStyleSheet(f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 11px; background: transparent;")
+        self._count_label.setStyleSheet(
+            f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 11px; background: transparent;"
+        )
         layout.addWidget(self._count_label)
 
         return row
 
     def _show_genre_menu(self):
-        """Dropdown genre pakai QMenu."""
         menu = QtWidgets.QMenu(self)
         menu.setStyleSheet("""
             QMenu { background-color: #222222; border: 1px solid #444; border-radius: 8px; padding: 4px; }
@@ -329,12 +263,10 @@ class MovietablePage(QtWidgets.QWidget):
             QMenu::item:checked { color: #E53935; font-weight: bold; }
         """)
 
-        # Clear all action
         clear_action = menu.addAction("✕ Clear All")
         clear_action.triggered.connect(self._clear_genres)
         menu.addSeparator()
 
-        # Genre actions
         all_genres = set()
         for m in self.all_movies:
             for g in str(m.get("genre", "")).split(","):
@@ -343,7 +275,9 @@ class MovietablePage(QtWidgets.QWidget):
                     all_genres.add(g)
 
         for genre in sorted(all_genres):
-            action = menu.addAction(f"{'✓ ' if genre in self._genre_selected else '   '}{genre}")
+            action = menu.addAction(
+                f"{'✓ ' if genre in self._genre_selected else '   '}{genre}"
+            )
             action.triggered.connect(lambda _, g=genre: self._toggle_genre(g))
 
         menu.exec(self._genre_btn_main.mapToGlobal(
@@ -356,7 +290,6 @@ class MovietablePage(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(container)
         layout.setContentsMargins(40, 10, 40, 0)
 
-        # Scroll area
         self._scroll_area = QtWidgets.QScrollArea()
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setStyleSheet("""
@@ -395,7 +328,9 @@ class MovietablePage(QtWidgets.QWidget):
 
         self._page_label = QtWidgets.QLabel("Page 1 of 1")
         self._page_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self._page_label.setStyleSheet(f"color: {TEXT_WHITE}; font-family: 'Trebuchet MS'; background: transparent;")
+        self._page_label.setStyleSheet(
+            f"color: {TEXT_WHITE}; font-family: 'Trebuchet MS'; background: transparent;"
+        )
 
         self._next_btn = QtWidgets.QPushButton("Next ▶")
         self._next_btn.setFixedSize(100, 34)
@@ -412,7 +347,6 @@ class MovietablePage(QtWidgets.QWidget):
 
     # ── RENDER TABLE ──────────────────────────────────────────────────────────
     def render_table(self):
-        # Bersihkan grid
         while self._grid_layout.count():
             item = self._grid_layout.takeAt(0)
             if item.widget():
@@ -436,7 +370,7 @@ class MovietablePage(QtWidgets.QWidget):
             empty_lbl.setStyleSheet("color: #888888; font-size: 14px; background: transparent;")
             self._grid_layout.addWidget(empty_lbl, 0, 0, 1, COLS)
         else:
-            self._poster_refs = []  # Cegah garbage collection
+            self._poster_refs = []
 
             for idx, movie in enumerate(movies_to_show):
                 row_i = idx // COLS
@@ -445,7 +379,6 @@ class MovietablePage(QtWidgets.QWidget):
                 self._grid_layout.addWidget(card, row_i, col_i,
                                              QtCore.Qt.AlignmentFlag.AlignTop)
 
-        # Update pagination
         self._prev_btn.setEnabled(self.current_page > 0)
         self._next_btn.setEnabled(end < len(self.filtered_list))
         self._page_label.setText(f"Page {self.current_page + 1} of {total_pages}")
@@ -469,11 +402,12 @@ class MovietablePage(QtWidgets.QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
 
-        # Poster
         poster_lbl = QtWidgets.QLabel()
         poster_lbl.setFixedSize(POSTER_W, POSTER_H)
         poster_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        poster_lbl.setStyleSheet("background-color: #1A1A1A; border-radius: 8px; color: #888; font-size: 32px;")
+        poster_lbl.setStyleSheet(
+            "background-color: #1A1A1A; border-radius: 8px; color: #888; font-size: 32px;"
+        )
         poster_lbl.setText("🎬")
 
         path = movie.get("poster_local", "")
@@ -492,24 +426,26 @@ class MovietablePage(QtWidgets.QWidget):
 
         layout.addWidget(poster_lbl)
 
-        # Title
         title_lbl = QtWidgets.QLabel(movie.get("title", "Unknown"))
         title_lbl.setWordWrap(True)
-        title_lbl.setStyleSheet(f"color: {TEXT_WHITE}; font-family: 'Trebuchet MS'; font-size: 12px; font-weight: bold; background: transparent;")
+        title_lbl.setStyleSheet(
+            f"color: {TEXT_WHITE}; font-family: 'Trebuchet MS'; font-size: 12px; font-weight: bold; background: transparent;"
+        )
         layout.addWidget(title_lbl)
 
-        # Year & Genre
         sub_lbl = QtWidgets.QLabel(f"{movie.get('year', 'N/A')}  •  {movie.get('genre', 'N/A')}")
         sub_lbl.setWordWrap(True)
-        sub_lbl.setStyleSheet(f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 10px; background: transparent;")
+        sub_lbl.setStyleSheet(
+            f"color: {TEXT_GRAY}; font-family: 'Trebuchet MS'; font-size: 10px; background: transparent;"
+        )
         layout.addWidget(sub_lbl)
 
-        # Rating
         rating_lbl = QtWidgets.QLabel(f"⭐ {movie.get('rating', 'N/A')}  IMDb")
-        rating_lbl.setStyleSheet(f"color: {ACCENT}; font-family: 'Trebuchet MS'; font-size: 11px; font-weight: bold; background: transparent;")
+        rating_lbl.setStyleSheet(
+            f"color: {ACCENT}; font-family: 'Trebuchet MS'; font-size: 11px; font-weight: bold; background: transparent;"
+        )
         layout.addWidget(rating_lbl)
 
-        # Hover effect
         card.enterEvent = lambda e, c=card: c.setStyleSheet("""
             QWidget#movieCard { background-color: #3D3D3D; border-radius: 10px; border: 2px solid #E53935; }
         """)
