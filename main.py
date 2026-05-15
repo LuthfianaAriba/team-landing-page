@@ -35,11 +35,9 @@ class MainApp(QtWidgets.QMainWindow):
         # Load data lokal
         self._load_local_data()
 
-        # Init Auth
-        self.auth = AuthPages(self.container, self)
-
         # Cek sesi
-        active_user = self.auth.db.get_session()
+        temp_auth = AuthPages(self.container, self)
+        active_user = temp_auth.db.get_session()
         if active_user:
             self.show_page("dashboard")
         else:
@@ -65,43 +63,60 @@ class MainApp(QtWidgets.QMainWindow):
                 json.dump(self.movie_list, f, indent=4)
             print("✅ Database Ready!")
 
-    def show_page(self, page_name, data=None):
-        # Hapus semua widget lama dari stacked widget
+    def _clear_container(self):
+        """Hapus semua widget dari container dengan aman."""
         while self.container.count():
             widget = self.container.widget(0)
             self.container.removeWidget(widget)
             widget.deleteLater()
 
+    def show_page(self, page_name, data=None):
+        self._clear_container()
+
         if page_name == "login":
-            widget = self.auth.render_login()
-            self.current_page_instance = self.auth
+            # Buat AuthPages baru setiap kali — hindari pakai instance lama yang sudah di-deleteLater
+            auth = AuthPages(self.container, self)
+            auth.render_login()
+            self.current_page_instance = auth
+            self.container.addWidget(auth)
+            self.container.setCurrentWidget(auth)
+            return
+
         elif page_name == "register":
-            widget = self.auth.render_register()
-            self.current_page_instance = self.auth
+            auth = AuthPages(self.container, self)
+            auth.render_register()
+            self.current_page_instance = auth
+            self.container.addWidget(auth)
+            self.container.setCurrentWidget(auth)
+            return
+
+        elif page_name == "forgot_password":
+            auth = AuthPages(self.container, self)
+            auth.render_forgot_password()
+            self.current_page_instance = auth
+            self.container.addWidget(auth)
+            self.container.setCurrentWidget(auth)
+            return
+
         elif page_name == "dashboard":
             widget = DashboardPage(self.container, self)
-            self.current_page_instance = widget
         elif page_name == "movietable":
             widget = MovietablePage(self.container, self)
-            self.current_page_instance = widget
         elif page_name == "genreanalyze":
             widget = GenreAnalyzePage(self.container, self)
-            self.current_page_instance = widget
         elif page_name == "moviedetail":
             widget = MovieDetailPage(self.container, self, movie_data=data)
-            self.current_page_instance = widget
         elif page_name == "watchlist":
             widget = WatchlistPage(self.container, self)
-            self.current_page_instance = widget
         else:
             return
 
+        self.current_page_instance = widget
         self.container.addWidget(widget)
         self.container.setCurrentWidget(widget)
 
     def show_toast(self, message, target=None):
         print(f"🔔 {message}")
-        # Pakai QMessageBox sebagai pengganti toast, atau bisa custom SnackBar
         toast = QtWidgets.QMessageBox(self)
         toast.setWindowTitle("Info")
         toast.setText(message)
@@ -122,7 +137,6 @@ class MainApp(QtWidgets.QMainWindow):
             self.show_page("movietable")
 
     def logout(self):
-        """Dipanggil dari ProfileWidget saat user logout."""
         try:
             if os.path.exists("session.json"):
                 os.remove("session.json")
