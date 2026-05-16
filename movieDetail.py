@@ -31,8 +31,7 @@ class MovieDetailPage(QWidget):
                 with open("session.json", "r") as f:
                     data = json.load(f)
                     self.username = data.get("username", data.get("active_user", "Guest"))
-        except:
-            pass
+        except: pass
 
         self.setStyleSheet("background: #141414;")
         self._build_ui()
@@ -73,8 +72,7 @@ class MovieDetailPage(QWidget):
                     for m in json.load(f):
                         if m.get("title") == self.movie.get("title"):
                             return m.get("user_rating", 0), m.get("user_review", "")
-            except:
-                pass
+            except: pass
         return 0, ""
 
     def _on_status_change(self, value):
@@ -121,8 +119,7 @@ class MovieDetailPage(QWidget):
             try:
                 with open(wl_file, "r", encoding="utf-8") as f:
                     watchlist = json.load(f)
-            except:
-                pass
+            except: pass
 
         user_rating = self.selected_stars
         user_review = self.review_entry.toPlainText().strip()
@@ -131,30 +128,23 @@ class MovieDetailPage(QWidget):
         for m in watchlist:
             if m.get("title") == self.movie.get("title"):
                 m["status"] = status
-                if user_rating > 0:
-                    m["user_rating"] = user_rating
-                if user_review:
-                    m["user_review"] = user_review
+                if user_rating > 0: m["user_rating"] = user_rating
+                if user_review: m["user_review"] = user_review
                 movie_exists = True
                 break
 
         if not movie_exists:
             new_entry = self.movie.copy()
             new_entry["status"] = status
-            if user_rating > 0:
-                new_entry["user_rating"] = user_rating
-            if user_review:
-                new_entry["user_review"] = user_review
+            if user_rating > 0: new_entry["user_rating"] = user_rating
+            if user_review: new_entry["user_review"] = user_review
             watchlist.append(new_entry)
 
         with open(wl_file, "w", encoding="utf-8") as f:
             json.dump(watchlist, f, indent=4)
 
         self.add_btn.setText(f"✓ Saved as {status}")
-        self.add_btn.setStyleSheet(
-            "background: #28a745; color: black; font-size: 15px; "
-            "font-weight: bold; border-radius: 8px; border: none;"
-        )
+        self.add_btn.setStyleSheet("background: #28a745; color: black; font-size: 15px; font-weight: bold; border-radius: 8px; border: none;")
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
@@ -187,48 +177,28 @@ class MovieDetailPage(QWidget):
         hero = QWidget()
         hero.setFixedHeight(340)
         hero.setStyleSheet("background: #1c1c1c;")
-        hero.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-        # Blurred BG — QLabel background yang di-scale pas dengan lebar widget
-        if poster_path and os.path.exists(poster_path):
-            try:
-                BG_H = 340
-                bg_img = Image.open(poster_path).convert("RGB")
-                # Scale by height dulu
-                ratio = BG_H / bg_img.height
-                new_w = int(bg_img.width * ratio)
-                bg_img = bg_img.resize((new_w, BG_H), Image.LANCZOS)
-                # Tile horizontal sampai cukup lebar (2000px aman untuk semua monitor)
-                target_w = 2000
-                if new_w < target_w:
-                    times = (target_w // new_w) + 2
-                    wide = Image.new("RGB", (new_w * times, BG_H))
-                    for i in range(times):
-                        wide.paste(bg_img, (i * new_w, 0))
-                    bg_img = wide.crop((0, 0, target_w, BG_H))
-                bg_img = bg_img.filter(ImageFilter.GaussianBlur(radius=18))
-                bg_img = ImageEnhance.Brightness(bg_img).enhance(0.22)
-
-                # Render ke QLabel yang stretched sesuai lebar parent
-                bg_lbl = QLabel(hero)
-                bg_lbl.setGeometry(0, 0, 2000, BG_H)
-                px_bg = pil_to_qpixmap(bg_img)
-                bg_lbl.setPixmap(px_bg)
-                bg_lbl.setScaledContents(True)   # stretch mengikuti geometry
-                bg_lbl.lower()
-                bg_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-                # Update geometry saat resize
-                def _update_bg(event, lbl=bg_lbl, w=hero):
-                    lbl.setGeometry(0, 0, w.width(), BG_H)
-                hero.resizeEvent = _update_bg
-            except:
-                pass
-
-        # Overlay konten di atas background
         hero_layout = QHBoxLayout(hero)
         hero_layout.setContentsMargins(50, 20, 50, 20)
         hero_layout.setSpacing(30)
+
+        # Blurred BG
+        if poster_path and os.path.exists(poster_path):
+            try:
+                bg_img = Image.open(poster_path).convert("RGB")
+                ratio = max(800 / bg_img.width, 227 / bg_img.height)
+                bg_img = bg_img.resize((int(bg_img.width*ratio), int(bg_img.height*ratio)), Image.LANCZOS)
+                l = (bg_img.width - 800) // 2
+                t = (bg_img.height - 227) // 2
+                bg_img = bg_img.crop((l, t, l+800, t+227))
+                bg_img = bg_img.filter(ImageFilter.GaussianBlur(radius=12))
+                bg_img = ImageEnhance.Brightness(bg_img).enhance(0.25)
+                hero.setAutoFillBackground(True)
+                px = pil_to_qpixmap(bg_img, (1200, 340))
+                bg_lbl = QLabel(hero)
+                bg_lbl.setPixmap(px)
+                bg_lbl.setGeometry(0, 0, 1200, 340)
+                bg_lbl.lower()
+            except: pass
 
         # Poster thumb
         if poster_path and os.path.exists(poster_path):
@@ -237,10 +207,8 @@ class MovieDetailPage(QWidget):
                 poster_lbl = QLabel()
                 poster_lbl.setPixmap(px)
                 poster_lbl.setFixedSize(160, 240)
-                poster_lbl.setStyleSheet("background: transparent;")
                 hero_layout.addWidget(poster_lbl)
-            except:
-                pass
+            except: pass
 
         info_widget = QWidget()
         info_widget.setStyleSheet("background: transparent;")
@@ -261,10 +229,7 @@ class MovieDetailPage(QWidget):
             gbtn = QPushButton(g)
             gbtn.setFixedSize(80, 28)
             gbtn.setCursor(Qt.CursorShape.PointingHandCursor)
-            gbtn.setStyleSheet(
-                "background: #990000; color: white; border-radius: 14px; "
-                "font-size: 12px; border: none;"
-            )
+            gbtn.setStyleSheet("background: #990000; color: white; border-radius: 14px; font-size: 12px; border: none;")
             gbtn.clicked.connect(lambda _, gn=g: self._go_to_genre(gn))
             genre_row.addWidget(gbtn)
         genre_row.addStretch()
@@ -320,10 +285,7 @@ class MovieDetailPage(QWidget):
             for p in platforms[:4]:
                 pb = QPushButton(p)
                 pb.setFixedHeight(30)
-                pb.setStyleSheet(
-                    "background: #222; color: white; border-radius: 15px; "
-                    "padding: 0 12px; font-size: 12px; border: none;"
-                )
+                pb.setStyleSheet("background: #222; color: white; border-radius: 15px; padding: 0 12px; font-size: 12px; border: none;")
                 wtw_row.addWidget(pb)
         else:
             wtw_row.addWidget(QLabel("Not Available Online"))
@@ -369,6 +331,7 @@ class MovieDetailPage(QWidget):
             row_hl.addStretch()
             chart_vl.addWidget(row_w)
 
+        # Votes label
         votes_display = f"{total_votes:,}" if total_votes > 0 else "N/A"
         votes_lbl = QLabel(f"👥  {votes_display} ratings")
         votes_lbl.setStyleSheet("color: #AAAAAA; font-size: 16px; background: transparent;")
@@ -451,10 +414,7 @@ class MovieDetailPage(QWidget):
         self.add_btn = QPushButton("+ Update Watchlist")
         self.add_btn.setFixedSize(250, 45)
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.add_btn.setStyleSheet(
-            "background: #FF8C00; color: black; font-size: 15px; "
-            "font-weight: bold; border-radius: 8px; border: none;"
-        )
+        self.add_btn.setStyleSheet("background: #FF8C00; color: black; font-size: 15px; font-weight: bold; border-radius: 8px; border: none;")
         self.add_btn.clicked.connect(self._add_to_watchlist)
         wl_vl.addWidget(self.add_btn)
 
@@ -462,14 +422,23 @@ class MovieDetailPage(QWidget):
         inner_vl.addLayout(split_row)
 
         # 5. More Stories
-        more_row = QHBoxLayout()
-        more_row.setContentsMargins(0, 70, 0, 40)
+        more_section = QWidget()
+        more_section.setStyleSheet("background: transparent;")
+        more_vl = QVBoxLayout(more_section)
+        more_vl.setContentsMargins(0, 70, 0, 40)
+        more_vl.setSpacing(20)
+
         more_title = QLabel("More Stories")
         more_title.setFont(QFont("Helvetica", 20, QFont.Weight.Bold))
         more_title.setStyleSheet("color: white; background: transparent;")
-        more_title.setFixedWidth(150)
-        more_title.setAlignment(Qt.AlignmentFlag.AlignTop)
-        more_row.addWidget(more_title)
+        more_vl.addWidget(more_title)
+
+        poster_row_w = QWidget()
+        poster_row_w.setStyleSheet("background: transparent;")
+        poster_row = QHBoxLayout(poster_row_w)
+        poster_row.setContentsMargins(0, 0, 0, 0)
+        poster_row.setSpacing(20)
+        poster_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         all_movies = getattr(self.app, "movie_list", [])
         other_movies = [m for m in all_movies if m.get("title") != title]
@@ -486,11 +455,12 @@ class MovieDetailPage(QWidget):
                         lbl.setFixedSize(140, 200)
                         lbl.setCursor(Qt.CursorShape.PointingHandCursor)
                         lbl.mousePressEvent = lambda e, d=m_data: self.app.show_page("moviedetail", d)
-                        more_row.addWidget(lbl)
+                        poster_row.addWidget(lbl)
                     except:
                         pass
-        more_row.addStretch()
-        inner_vl.addLayout(more_row)
+        poster_row.addStretch()
+        more_vl.addWidget(poster_row_w)
+        inner_vl.addWidget(more_section)
 
         cl.addWidget(content_inner)
 
@@ -510,10 +480,7 @@ class MovieDetailPage(QWidget):
         bb = QPushButton("Go to Watchlist")
         bb.setFixedSize(160, 36)
         bb.setCursor(Qt.CursorShape.PointingHandCursor)
-        bb.setStyleSheet(
-            "background: #1A1A1A; color: white; font-size: 13px; "
-            "font-weight: bold; border-radius: 4px; border: none;"
-        )
+        bb.setStyleSheet("background: #1A1A1A; color: white; font-size: 13px; font-weight: bold; border-radius: 4px; border: none;")
         bb.clicked.connect(lambda: self.app.show_page("watchlist"))
         bl.addWidget(bb, alignment=Qt.AlignmentFlag.AlignCenter)
         cl.addWidget(banner)
