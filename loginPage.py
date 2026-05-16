@@ -66,6 +66,43 @@ class UserDB:
         if os.path.exists(self.session_file):
             os.remove(self.session_file)
 
+    def get_user_info(self, username):
+        data = self._load_data()
+        return data.get(username)
+
+    def update_avatar_path(self, username, path):
+        data = self._load_data()
+        if username in data:
+            data[username]["avatar_path"] = path
+            self._save_data(data)
+
+    def update_profile_info(self, username, full_name, email, bio, gender, dob):
+        data = self._load_data()
+        if username not in data:
+            return False, "User tidak ditemukan!"
+        data[username].update({"full_name": full_name, "email": email,
+                               "bio": bio, "gender": gender, "dob": dob})
+        self._save_data(data)
+        return True, "Profil berhasil disimpan!"
+
+    def change_password_secure(self, username, old_password, new_password):
+        data = self._load_data()
+        if username not in data:
+            return False, "User tidak ditemukan!"
+        if data[username]["password"] != old_password:
+            return False, "Password lama salah!"
+        data[username]["password"] = new_password
+        self._save_data(data)
+        return True, "Password berhasil diubah!"
+
+    def delete_user(self, username):
+        data = self._load_data()
+        if username in data:
+            del data[username]
+            self._save_data(data)
+            return True
+        return False
+
 
 # ── Helper: styled input ──────────────────────────────────────────────────────
 def make_input(placeholder, echo_mode=QLineEdit.EchoMode.Normal, width=320):
