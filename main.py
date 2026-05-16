@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal, QObject
 from PyQt6.QtGui import QFont
 
-# Import halaman-halaman aplikasi (sesuaikan nama modul dengan versi PyQt6-nya)
 from loginPage import AuthPages
 from movieTable import MovietablePage
 from dashboardCinephile import DashboardPage
@@ -19,14 +18,10 @@ from genreAnalyze import GenreAnalyzePage
 from movieDetail import MovieDetailPage
 from watchlist import WatchlistPage
 from scraper import MovieScraper
-from styles import BG_MAIN  # pastikan styles.py menyediakan konstanta warna dalam format hex string
+from styles import BG_MAIN
 
 
-# ──────────────────────────────────────────────
-# Helper: emit sinyal dari thread sekunder
-# ──────────────────────────────────────────────
 class _ScraperSignals(QObject):
-    """Sinyal yang aman dipakai dari background thread."""
     data_ready = pyqtSignal(list)
 
 
@@ -42,11 +37,9 @@ class MainApp(QMainWindow):
         self.movie_list: list = []
         self.search_query_pending: str | None = None
 
-        # Sinyal dari thread scraper
         self._signals = _ScraperSignals()
         self._signals.data_ready.connect(self._on_data_ready)
 
-        # Widget utama & stacked layout
         self._central = QWidget()
         self.setCentralWidget(self._central)
 
@@ -54,16 +47,15 @@ class MainApp(QMainWindow):
         self._main_layout.setContentsMargins(0, 0, 0, 0)
         self._main_layout.setSpacing(0)
 
-        # QStackedWidget sebagai pengganti container CTk
         self.stack = QStackedWidget()
         self._main_layout.addWidget(self.stack)
 
-        # Auth pages
-        self.auth = AuthPages(self.stack, self)
+        # AuthPages ditambah ke stack sekali saja (index 0)
+        self.auth = AuthPages(None, self)
+        self.stack.addWidget(self.auth)
 
         self._load_local_data()
 
-        # Cek sesi aktif
         active_user = None
         if os.path.exists("session.json"):
             try:
@@ -77,9 +69,7 @@ class MainApp(QMainWindow):
         else:
             self.show_page("login")
 
-    # ──────────────────────────────────────────
-    # Data
-    # ──────────────────────────────────────────
+    # ── Data ──────────────────────────────────────────────────────────────
 
     def _load_local_data(self):
         if os.path.exists(self.db_path):
@@ -98,7 +88,6 @@ class MainApp(QMainWindow):
             self._signals.data_ready.emit(hasil)
 
     def _on_data_ready(self, data: list):
-        """Dipanggil di main thread setelah scraping selesai."""
         self.movie_list = data
         try:
             with open(self.db_path, "w", encoding="utf-8") as f:
@@ -107,63 +96,68 @@ class MainApp(QMainWindow):
         except Exception as e:
             print(f"Gagal menyimpan data: {e}")
 
-    # ──────────────────────────────────────────
-    # Navigasi halaman
-    # ──────────────────────────────────────────
+    # ── Navigasi ──────────────────────────────────────────────────────────
 
-    def _clear_stack(self):
-        """Hapus semua widget dari stack kecuali yang sedang ditampilkan."""
-        while self.stack.count():
-            widget = self.stack.widget(0)
+    def _clear_dynamic_pages(self):
+        """Hapus semua widget KECUALI self.auth (index 0)."""
+        while self.stack.count() > 1:
+            widget = self.stack.widget(1)
             self.stack.removeWidget(widget)
             widget.deleteLater()
 
     def show_page(self, page_name: str, data=None):
-        self._clear_stack()
+        self._clear_dynamic_pages()
 
+        # Halaman auth: render_* isi ulang self.auth, lalu tampilkan
         if page_name == "login":
             self.resize(1100, 850)
-            page = self.auth.render_login()
-        elif page_name == "register":
-            page = self.auth.render_register()
-        elif page_name == "dashboard":
+            self.auth.render_login()
+            self.stack.setCurrentWidget(self.auth)
+            return
+
+        if page_name == "register":
+            self.auth.render_register()
+            self.stack.setCurrentWidget(self.auth)
+            return
+
+        if page_name == "forgot_password":
+            self.auth.render_forgot_password()
+            self.stack.setCurrentWidget(self.auth)
+            return
+
+        # Halaman lain: buat widget baru
+        if page_name == "dashboard":
             self.resize(1100, 850)
-            page = DashboardPage(self.stack, self)
+            page = DashboardPage(None, self)
         elif page_name == "profile":
             self.resize(1100, 850)
-            page = ProfilePage(self.stack, self)
+            page = ProfilePage(None, self)
         elif page_name == "movietable":
-            page = MovietablePage(self.stack, self)
+            page = MovietablePage(None, self)
         elif page_name == "genreanalyze":
-            page = GenreAnalyzePage(self.stack, self)
+            page = GenreAnalyzePage(None, self)
         elif page_name == "moviedetail":
-            page = MovieDetailPage(self.stack, self, movie_data=data)
+            page = MovieDetailPage(None, self, movie_data=data)
         elif page_name == "watchlist":
-            page = WatchlistPage(self.stack, self)
+            page = WatchlistPage(None, self)
         else:
             return
 
-        if page is not None:
-            self.stack.addWidget(page)
-            self.stack.setCurrentWidget(page)
+        self.stack.addWidget(page)
+        self.stack.setCurrentWidget(page)
 
-    # ──────────────────────────────────────────
-    # Toast / notifikasi
-    # ──────────────────────────────────────────
+    # ── Toast ─────────────────────────────────────────────────────────────
 
     def show_toast(self, message: str, target: str | None = None):
-        print(f"Toast Notification: {message}")
+        print(f"Toast: {message}")
         if target:
             self.show_page(target)
 
-    # ──────────────────────────────────────────
-    # Animasi welcome
-    # ──────────────────────────────────────────
+    # ── Welcome animation ─────────────────────────────────────────────────
 
     def show_welcome_transition(self, username: str):
-        self._clear_stack()
+        self._clear_dynamic_pages()
 
-        # Buat frame welcome
         welcome_widget = QWidget()
         welcome_widget.setStyleSheet(f"background-color: {BG_MAIN};")
         layout = QVBoxLayout(welcome_widget)
@@ -175,7 +169,6 @@ class MainApp(QMainWindow):
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl)
 
-        # Fade-in menggunakan QGraphicsOpacityEffect + QPropertyAnimation
         effect = QGraphicsOpacityEffect(lbl)
         lbl.setGraphicsEffect(effect)
         effect.setOpacity(0.0)
@@ -190,15 +183,12 @@ class MainApp(QMainWindow):
         self.stack.addWidget(welcome_widget)
         self.stack.setCurrentWidget(welcome_widget)
 
-        # Setelah 2 detik, pindah ke dashboard
         QTimer.singleShot(2000, self._go_to_dashboard)
 
     def _go_to_dashboard(self):
         self.show_page("dashboard")
 
-    # ──────────────────────────────────────────
-    # Search lokal
-    # ──────────────────────────────────────────
+    # ── Search ────────────────────────────────────────────────────────────
 
     def handle_local_search(self, query: str):
         if not query:
@@ -206,9 +196,7 @@ class MainApp(QMainWindow):
         self.search_query_pending = query.lower().strip()
         self.show_page("movietable")
 
-    # ──────────────────────────────────────────
-    # Cleanup saat tutup
-    # ──────────────────────────────────────────
+    # ── Cleanup ───────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
         try:
@@ -217,10 +205,6 @@ class MainApp(QMainWindow):
             pass
         event.accept()
 
-
-# ──────────────────────────────────────────────
-# Entry point
-# ──────────────────────────────────────────────
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
