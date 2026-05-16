@@ -3,146 +3,212 @@ import json
 import os
 import threading
 
-from PyQt6 import QtWidgets, QtCore
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QStackedWidget,
+    QLabel, QVBoxLayout, QGraphicsOpacityEffect
+)
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal, QObject
+from PyQt6.QtGui import QFont
 
+# Import halaman-halaman aplikasi (sesuaikan nama modul dengan versi PyQt6-nya)
 from loginPage import AuthPages
 from movieTable import MovietablePage
 from dashboardCinephile import DashboardPage
+from profilePage import ProfilePage
 from genreAnalyze import GenreAnalyzePage
 from movieDetail import MovieDetailPage
 from watchlist import WatchlistPage
 from scraper import MovieScraper
+from styles import BG_MAIN  # pastikan styles.py menyediakan konstanta warna dalam format hex string
 
 
-class MainApp(QtWidgets.QMainWindow):
+# ──────────────────────────────────────────────
+# Helper: emit sinyal dari thread sekunder
+# ──────────────────────────────────────────────
+class _ScraperSignals(QObject):
+    """Sinyal yang aman dipakai dari background thread."""
+    data_ready = pyqtSignal(list)
+
+
+class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cinephile App")
         self.resize(1100, 850)
-        self.setStyleSheet("background-color: #1A1A1A;")
+        self.setStyleSheet(f"background-color: {BG_MAIN};")
 
-        # Variabel sistem
-        self.search_query_pending = None
-        self.movie_list = []
         self.db_path = "data_film.json"
         self.scraper = MovieScraper()
-        self.current_page_instance = None
+        self.movie_list: list = []
+        self.search_query_pending: str | None = None
 
-        # Container utama pakai QStackedWidget
-        self.container = QtWidgets.QStackedWidget()
-        self.setCentralWidget(self.container)
+        # Sinyal dari thread scraper
+        self._signals = _ScraperSignals()
+        self._signals.data_ready.connect(self._on_data_ready)
 
-        # Load data lokal
+        # Widget utama & stacked layout
+        self._central = QWidget()
+        self.setCentralWidget(self._central)
+
+        self._main_layout = QVBoxLayout(self._central)
+        self._main_layout.setContentsMargins(0, 0, 0, 0)
+        self._main_layout.setSpacing(0)
+
+        # QStackedWidget sebagai pengganti container CTk
+        self.stack = QStackedWidget()
+        self._main_layout.addWidget(self.stack)
+
+        # Auth pages
+        self.auth = AuthPages(self.stack, self)
+
         self._load_local_data()
 
-        # Cek sesi
-        temp_auth = AuthPages(self.container, self)
-        active_user = temp_auth.db.get_session()
+        # Cek sesi aktif
+        active_user = None
+        if os.path.exists("session.json"):
+            try:
+                with open("session.json", "r", encoding="utf-8") as f:
+                    active_user = json.load(f).get("active_user")
+            except Exception:
+                pass
+
         if active_user:
             self.show_page("dashboard")
         else:
             self.show_page("login")
 
+    # ──────────────────────────────────────────
+    # Data
+    # ──────────────────────────────────────────
+
     def _load_local_data(self):
         if os.path.exists(self.db_path):
-            with open(self.db_path, "r", encoding="utf-8") as f:
-                try:
+            try:
+                with open(self.db_path, "r", encoding="utf-8") as f:
                     self.movie_list = json.load(f)
-                except Exception:
-                    self.movie_list = []
+            except Exception:
+                self.movie_list = []
 
         if not self.movie_list:
-            print("⚠️ Database kosong. Scraping data awal...")
             threading.Thread(target=self._initialize_data, daemon=True).start()
 
     def _initialize_data(self):
         hasil = self.scraper.scrape_top_movies()
         if hasil:
-            self.movie_list = hasil
+            self._signals.data_ready.emit(hasil)
+
+    def _on_data_ready(self, data: list):
+        """Dipanggil di main thread setelah scraping selesai."""
+        self.movie_list = data
+        try:
             with open(self.db_path, "w", encoding="utf-8") as f:
                 json.dump(self.movie_list, f, indent=4)
             print("✅ Database Ready!")
+        except Exception as e:
+            print(f"Gagal menyimpan data: {e}")
 
-    def _clear_container(self):
-        """Hapus semua widget dari container dengan aman."""
-        while self.container.count():
-            widget = self.container.widget(0)
-            self.container.removeWidget(widget)
+    # ──────────────────────────────────────────
+    # Navigasi halaman
+    # ──────────────────────────────────────────
+
+    def _clear_stack(self):
+        """Hapus semua widget dari stack kecuali yang sedang ditampilkan."""
+        while self.stack.count():
+            widget = self.stack.widget(0)
+            self.stack.removeWidget(widget)
             widget.deleteLater()
 
-    def show_page(self, page_name, data=None):
-        self._clear_container()
+    def show_page(self, page_name: str, data=None):
+        self._clear_stack()
 
         if page_name == "login":
-            # Buat AuthPages baru setiap kali — hindari pakai instance lama yang sudah di-deleteLater
-            auth = AuthPages(self.container, self)
-            auth.render_login()
-            self.current_page_instance = auth
-            self.container.addWidget(auth)
-            self.container.setCurrentWidget(auth)
-            return
-
+            self.resize(1100, 850)
+            page = self.auth.render_login()
         elif page_name == "register":
-            auth = AuthPages(self.container, self)
-            auth.render_register()
-            self.current_page_instance = auth
-            self.container.addWidget(auth)
-            self.container.setCurrentWidget(auth)
-            return
-
-        elif page_name == "forgot_password":
-            auth = AuthPages(self.container, self)
-            auth.render_forgot_password()
-            self.current_page_instance = auth
-            self.container.addWidget(auth)
-            self.container.setCurrentWidget(auth)
-            return
-
+            page = self.auth.render_register()
         elif page_name == "dashboard":
-            widget = DashboardPage(self.container, self)
+            self.resize(1100, 850)
+            page = DashboardPage(self.stack, self)
+        elif page_name == "profile":
+            self.resize(1100, 850)
+            page = ProfilePage(self.stack, self)
         elif page_name == "movietable":
-            widget = MovietablePage(self.container, self)
+            page = MovietablePage(self.stack, self)
         elif page_name == "genreanalyze":
-            widget = GenreAnalyzePage(self.container, self)
+            page = GenreAnalyzePage(self.stack, self)
         elif page_name == "moviedetail":
-            widget = MovieDetailPage(self.container, self, movie_data=data)
+            page = MovieDetailPage(self.stack, self, movie_data=data)
         elif page_name == "watchlist":
-            widget = WatchlistPage(self.container, self)
+            page = WatchlistPage(self.stack, self)
         else:
             return
 
-        self.current_page_instance = widget
-        self.container.addWidget(widget)
-        self.container.setCurrentWidget(widget)
+        if page is not None:
+            self.stack.addWidget(page)
+            self.stack.setCurrentWidget(page)
 
-    def show_toast(self, message, target=None):
-        print(f"🔔 {message}")
-        toast = QtWidgets.QMessageBox(self)
-        toast.setWindowTitle("Info")
-        toast.setText(message)
-        toast.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ok)
-        toast.exec()
+    # ──────────────────────────────────────────
+    # Toast / notifikasi
+    # ──────────────────────────────────────────
+
+    def show_toast(self, message: str, target: str | None = None):
+        print(f"Toast Notification: {message}")
         if target:
             self.show_page(target)
 
-    def handle_local_search(self, query):
+    # ──────────────────────────────────────────
+    # Animasi welcome
+    # ──────────────────────────────────────────
+
+    def show_welcome_transition(self, username: str):
+        self._clear_stack()
+
+        # Buat frame welcome
+        welcome_widget = QWidget()
+        welcome_widget.setStyleSheet(f"background-color: {BG_MAIN};")
+        layout = QVBoxLayout(welcome_widget)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        lbl = QLabel(f"Welcome back,\n{username}")
+        lbl.setFont(QFont("Arial Black", 46, QFont.Weight.Bold))
+        lbl.setStyleSheet("color: white;")
+        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(lbl)
+
+        # Fade-in menggunakan QGraphicsOpacityEffect + QPropertyAnimation
+        effect = QGraphicsOpacityEffect(lbl)
+        lbl.setGraphicsEffect(effect)
+        effect.setOpacity(0.0)
+
+        self._fade_anim = QPropertyAnimation(effect, b"opacity")
+        self._fade_anim.setDuration(800)
+        self._fade_anim.setStartValue(0.0)
+        self._fade_anim.setEndValue(1.0)
+        self._fade_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self._fade_anim.start()
+
+        self.stack.addWidget(welcome_widget)
+        self.stack.setCurrentWidget(welcome_widget)
+
+        # Setelah 2 detik, pindah ke dashboard
+        QTimer.singleShot(2000, self._go_to_dashboard)
+
+    def _go_to_dashboard(self):
+        self.show_page("dashboard")
+
+    # ──────────────────────────────────────────
+    # Search lokal
+    # ──────────────────────────────────────────
+
+    def handle_local_search(self, query: str):
         if not query:
             return
-        query = query.lower().strip()
+        self.search_query_pending = query.lower().strip()
+        self.show_page("movietable")
 
-        if self.current_page_instance.__class__.__name__ == "MovietablePage":
-            self.current_page_instance.filter_data(query)
-        else:
-            self.search_query_pending = query
-            self.show_page("movietable")
-
-    def logout(self):
-        try:
-            if os.path.exists("session.json"):
-                os.remove("session.json")
-        except Exception:
-            pass
-        self.show_page("login")
+    # ──────────────────────────────────────────
+    # Cleanup saat tutup
+    # ──────────────────────────────────────────
 
     def closeEvent(self, event):
         try:
@@ -152,8 +218,12 @@ class MainApp(QtWidgets.QMainWindow):
         event.accept()
 
 
+# ──────────────────────────────────────────────
+# Entry point
+# ──────────────────────────────────────────────
+
 if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     window = MainApp()
     window.show()
     sys.exit(app.exec())
