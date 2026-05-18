@@ -414,8 +414,8 @@ class MainApp(QMainWindow):
         # ── Movie Table
         elif page_name == "movietable":
             try:
-                from movieTable import MovieTablePage
-                return MovieTablePage(self, self)
+                from movieTable import MovietablePage
+                return MovietablePage(self, self)
             except Exception as e:
                 print(f"[movietable] Error: {e}")
 
