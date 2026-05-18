@@ -1,35 +1,35 @@
 """
-main_pyqt6.py  –  Cinephile App  (PyQt6 port)
-=====================================================
-Port dari tkinter / customtkinter ke PyQt6.
+main_pyqt6.py  –  Cinephile App (PyQt6 port)
+==============================================
+Port lengkap dari tkinter/customtkinter ke PyQt6.
 
-Dependency:
+Install:
     pip install PyQt6 Pillow
 
-Modul eksternal yang tetap dipakai:
-    loginPage, movieTable, dashboardCinephile, profilePage,
-    genreAnalyze, movieDetail, watchlist, scraper, styles
-(Modul-modul itu masih menggunakan tkinter – kamu perlu port
- satu per satu, atau bungkus dengan QWindow embed bila perlu.)
+Modul yang sudah di-port ke PyQt6:
+    - dashboardCinephile.py  → DashboardPage (PyQt6)
+
+Modul yang belum di-port (masih tkinter) – port satu per satu:
+    loginPage, movieTable, profilePage, genreAnalyze,
+    movieDetail, watchlist, scraper
 """
 
 import json
-import math
 import os
 import random
 import sys
 import threading
 
 from PyQt6.QtCore import (
-    QEasingCurve, QPoint, QPropertyAnimation, QRect, QSize,
-    QThread, Qt, QTimer, pyqtSignal, QObject,
+    QEasingCurve, QObject, QPropertyAnimation, QRect,
+    QThread, Qt, QTimer, pyqtSignal,
 )
 from PyQt6.QtGui import (
-    QColor, QCursor, QFont, QFontDatabase, QImage, QLinearGradient,
-    QPainter, QPainterPath, QPixmap, QRadialGradient,
+    QColor, QCursor, QFont, QImage, QPainter,
+    QPainterPath, QPixmap,
 )
 from PyQt6.QtWidgets import (
-    QApplication, QFrame, QGraphicsOpacityEffect, QLabel,
+    QApplication, QGraphicsOpacityEffect, QLabel,
     QMainWindow, QStackedWidget, QWidget,
 )
 
@@ -39,7 +39,7 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
-# ──────────────────────────────────────────────── poster constants
+# ── poster grid constants ─────────────────────────────────────────────────
 _POSTER_W = 130
 _POSTER_H = 195
 _N        = 24
@@ -53,13 +53,16 @@ _GRID = [
     (0.85, 0.12, 0.7),  (0.85, 0.37, 1.0),  (0.85, 0.62, 0.85), (0.85, 0.87, 0.95),
 ]
 
-_POSTER_CACHE: list["QPixmap"] = []
+_POSTER_CACHE: list[QPixmap] = []
 
 
-# ─────────────────────────────────────────── background poster cache worker
-class PosterCacheWorker(QObject):
-    """Memuat & memproses poster di thread terpisah, emit signal saat selesai."""
-    done = pyqtSignal(list)   # list of QPixmap
+# ══════════════════════════════════ background poster worker ══════════════
+class _PosterWorker(QObject):
+    """
+    Muat & proses poster di QThread terpisah.
+    Setara _precache_posters() + WelcomeScreen._worker() di versi tkinter.
+    """
+    finished = pyqtSignal(list)   # list[QPixmap]
 
     def __init__(self, movie_list: list):
         super().__init__()
@@ -68,13 +71,13 @@ class PosterCacheWorker(QObject):
     def run(self):
         global _POSTER_CACHE
         if not PIL_AVAILABLE:
-            self.done.emit([])
+            self.finished.emit([])
             return
 
         pool = [m for m in self.movie_list
                 if m.get("poster_local") and os.path.exists(m["poster_local"])]
         if not pool:
-            self.done.emit([])
+            self.finished.emit([])
             return
 
         random.shuffle(pool)
@@ -82,7 +85,7 @@ class PosterCacheWorker(QObject):
             pool = pool * 2
         pool = pool[:_N]
 
-        pixmaps = []
+        pixmaps: list[QPixmap] = []
         for m in pool:
             try:
                 img = Image.open(m["poster_local"]).convert("RGB")
@@ -90,88 +93,88 @@ class PosterCacheWorker(QObject):
                 img = img.filter(ImageFilter.GaussianBlur(1.5))
                 img = ImageEnhance.Brightness(img).enhance(0.25)
                 data = img.tobytes("raw", "RGB")
-                qimg = QImage(data, _POSTER_W, _POSTER_H, QImage.Format.Format_RGB888)
-                pixmaps.append(QPixmap.fromImage(qimg))
+                qi   = QImage(data, _POSTER_W, _POSTER_H, QImage.Format.Format_RGB888)
+                pixmaps.append(QPixmap.fromImage(qi))
             except Exception:
                 px = QPixmap(_POSTER_W, _POSTER_H)
                 px.fill(QColor(20, 20, 20))
                 pixmaps.append(px)
 
         _POSTER_CACHE = pixmaps
-        self.done.emit(pixmaps)
+        self.finished.emit(pixmaps)
 
 
-def _pil_to_pixmap(pil_img) -> "QPixmap":
-    data = pil_img.tobytes("raw", "RGB")
-    qimg = QImage(data, pil_img.width, pil_img.height, QImage.Format.Format_RGB888)
-    return QPixmap.fromImage(qimg)
-
-
-# ══════════════════════════════════════════════════════ WELCOME SCREEN
+# ══════════════════════════════════════════════════════ WELCOME SCREEN ════
 class WelcomeScreen(QWidget):
     """
-    Layar sambutan dengan parallax poster.
-    Sinyal `exit_requested` di-emit saat user klik tombol 'Lanjutkan'.
-    """
-    exit_requested = pyqtSignal()
+    Layar sambutan dengan parallax poster di latar.
+    Port 1-to-1 dari WelcomeScreen(tk.Frame) versi tkinter.
 
-    def __init__(self, parent, app, username: str):
+    Sinyal:
+        go_to_dashboard  – di-emit setelah animasi fade-out selesai
+    """
+    go_to_dashboard = pyqtSignal()
+
+    _STRIP_W = 44   # lebar strip film-reel (setara _STRIP_W di versi tk)
+
+    def __init__(self, parent: QWidget, app, username: str):
         super().__init__(parent)
         self.app      = app
         self.username = username
         self.setMouseTracking(True)
 
-        # poster data: list of dict {pixmap, base_x, base_y, rx, ry, depth}
-        self._posters: list[dict] = []
-
-        # parallax state
-        self._mouse_x = 0.0
-        self._mouse_y = 0.0
+        # parallax state  ≈  self._mx, _my, _tx, _ty di tk
+        self._mouse_x  = 0.0
+        self._mouse_y  = 0.0
         self._smooth_x = 0.0
         self._smooth_y = 0.0
 
-        # fade-out overlay alpha (0 = invisible, 255 = black)
-        self._fade_alpha = 0
-        self._fading_out = False
-        self._fade_step  = 0
+        # poster data  ≈  self._poster_items di tk
+        self._posters: list[dict] = []
 
-        # button rect (updated in resizeEvent)
-        self._btn_rect = QRect(0, 0, 0, 0)
+        # button
+        self._btn_rect    = QRect(0, 0, 0, 0)
         self._btn_hovered = False
+        self._btn_clicked = False   # guard double-click
 
-        # parallax timer
+        # fade-out state  ≈  _fade_overlay / _run_fadeout di tk
+        self._fade_alpha = 0
+        self._fade_step  = 0
+        self._fading_out = False
+
+        # timers
         self._parallax_timer = QTimer(self)
-        self._parallax_timer.setInterval(16)   # ~60 fps
+        self._parallax_timer.setInterval(16)           # ≈ after(16, _parallax_loop)
         self._parallax_timer.timeout.connect(self._tick_parallax)
         self._parallax_timer.start()
 
-        # fade-out timer
         self._fade_timer = QTimer(self)
-        self._fade_timer.setInterval(18)
+        self._fade_timer.setInterval(18)               # ≈ after(18, _run_fadeout)
         self._fade_timer.timeout.connect(self._tick_fadeout)
 
         self._load_posters()
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
-    # ────────────────────────────────────────────── poster loading
+    # ── poster loading ────────────────────────────────────────────────────
     def _load_posters(self):
+        """Setara _load_posters() di versi tk."""
         global _POSTER_CACHE
         if _POSTER_CACHE:
             QTimer.singleShot(50, lambda: self._on_posters_ready(_POSTER_CACHE[:]))
-            return
-
-        self._thread = QThread()
-        self._worker = PosterCacheWorker(getattr(self.app, "movie_list", []))
-        self._worker.moveToThread(self._thread)
-        self._thread.started.connect(self._worker.run)
-        self._worker.done.connect(self._on_posters_ready)
-        self._worker.done.connect(self._thread.quit)
-        self._thread.start()
+        else:
+            self._thread = QThread()
+            self._worker = _PosterWorker(getattr(self.app, "movie_list", []))
+            self._worker.moveToThread(self._thread)
+            self._thread.started.connect(self._worker.run)
+            self._worker.finished.connect(self._on_posters_ready)
+            self._worker.finished.connect(self._thread.quit)
+            self._thread.start()
 
     def _on_posters_ready(self, pixmaps: list):
-        if not pixmaps or not self.isVisible():
+        """Setara _draw_when_ready + _do_draw di versi tk."""
+        if not pixmaps:
             return
-        w, h = self.width() or 1100, self.height() or 850
+        w = self.width()  or 1100
+        h = self.height() or 850
         self._posters.clear()
         for i, px in enumerate(pixmaps[:_N]):
             rx, ry, depth = _GRID[i]
@@ -181,163 +184,176 @@ class WelcomeScreen(QWidget):
                 "pixmap": px,
                 "base_x": rx * w + jx,
                 "base_y": ry * h + jy,
-                "rx": rx, "ry": ry, "jx": jx, "jy": jy,
+                "rx": rx, "ry": ry,
+                "jx": jx, "jy": jy,
                 "depth": depth,
             })
         self.update()
 
-    # ────────────────────────────────────────────── layout helper
-    def _update_layout(self, w, h):
+    # ── layout ────────────────────────────────────────────────────────────
+    def _recalc_layout(self, w: int, h: int):
+        """Setara _on_resize() di versi tk."""
         bw, bh = 230, 48
         bx = w // 2 - bw // 2
         by = int(h * 0.64) - bh // 2
         self._btn_rect = QRect(bx, by, bw, bh)
-
-        # re-anchor posters to new window size
         for p in self._posters:
             p["base_x"] = p["rx"] * w + p["jx"]
             p["base_y"] = p["ry"] * h + p["jy"]
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._smooth_x = self.width() / 2
+        self._smooth_x = self.width()  / 2
         self._smooth_y = self.height() / 2
-        self._update_layout(self.width(), self.height())
+        self._recalc_layout(self.width(), self.height())
 
-    # ────────────────────────────────────────────── mouse
+    # ── mouse ─────────────────────────────────────────────────────────────
     def mouseMoveEvent(self, event):
+        """Setara _on_motion() di versi tk."""
         self._mouse_x = float(event.position().x())
         self._mouse_y = float(event.position().y())
-        hovered = self._btn_rect.contains(int(self._mouse_x), int(self._mouse_y))
-        if hovered != self._btn_hovered:
-            self._btn_hovered = hovered
-            self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor
-                                   if hovered else Qt.CursorShape.ArrowCursor))
+        hov = self._btn_rect.contains(int(self._mouse_x), int(self._mouse_y))
+        if hov != self._btn_hovered:
+            self._btn_hovered = hov
+            self.setCursor(QCursor(
+                Qt.CursorShape.PointingHandCursor if hov
+                else Qt.CursorShape.ArrowCursor
+            ))
             self.update()
 
     def mousePressEvent(self, event):
+        """Setara canvas.bind("<Button-1>", _on_click) di versi tk."""
         if event.button() == Qt.MouseButton.LeftButton:
             if self._btn_rect.contains(event.position().toPoint()):
-                self._start_fadeout()
+                self._go()
 
-    # ────────────────────────────────────────────── parallax loop
+    # ── parallax ──────────────────────────────────────────────────────────
     def _tick_parallax(self):
+        """Setara _parallax_loop() (dipanggil tiap 16 ms)."""
         ease = 0.07
         self._smooth_x += (self._mouse_x - self._smooth_x) * ease
         self._smooth_y += (self._mouse_y - self._smooth_y) * ease
         self.update()
 
-    # ────────────────────────────────────────────── fade-out
-    def _start_fadeout(self):
-        if self._fading_out:
+    # ── fade-out ──────────────────────────────────────────────────────────
+    def _go(self):
+        """Setara _go() di versi tk — mulai animasi fade-out."""
+        if self._btn_clicked or self._fading_out:
             return
-        self._fading_out = True
+        self._btn_clicked = True
+        self._fading_out  = True
+        self._parallax_timer.stop()     # ≈ after_cancel(_loop_id)
         self._fade_step  = 0
+        self._fade_alpha = 0
         self._fade_timer.start()
 
     def _tick_fadeout(self):
+        """
+        Setara _run_fadeout() di versi tk.
+        Tahapan opacity memetakan stipple tkinter:
+            gray12 ≈ 40, gray25 ≈ 80, gray50 ≈ 140, gray75 ≈ 200, solid = 255
+        """
         total = 20
         self._fade_step += 1
         progress = self._fade_step / total
-        # ease-in
-        self._fade_alpha = int(min(255, progress ** 2 * 255 * 1.2))
+
+        if   progress < 0.15: self._fade_alpha = 0
+        elif progress < 0.30: self._fade_alpha = 40
+        elif progress < 0.45: self._fade_alpha = 80
+        elif progress < 0.60: self._fade_alpha = 140
+        elif progress < 0.75: self._fade_alpha = 200
+        else:                  self._fade_alpha = 255
+
         self.update()
+
         if self._fade_step >= total:
             self._fade_timer.stop()
-            QTimer.singleShot(60, self.exit_requested.emit)
+            # ≈ self.after(60, lambda: self.app._do_welcome_to_dashboard(self))
+            QTimer.singleShot(60, self.go_to_dashboard.emit)
 
-    # ────────────────────────────────────────────── paint
+    # ── paint ─────────────────────────────────────────────────────────────
     def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        pr = QPainter(self)
+        pr.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pr.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         w, h = self.width(), self.height()
         cx, cy = w / 2, h / 2
 
         # ── background
-        painter.fillRect(self.rect(), QColor("#0D0D0D"))
+        pr.fillRect(self.rect(), QColor("#0D0D0D"))
 
-        # ── film-strip edges
-        strip_color = QColor("#1C1C1C")
-        hole_color  = QColor("#0D0D0D")
-        for x_strip in (0, w - 44):
-            painter.fillRect(x_strip, 0, 44, h, strip_color)
+        # ── film-strip kiri & kanan (setara _make_strip di versi tk)
+        for sx in (0, w - self._STRIP_W):
+            pr.fillRect(sx, 0, self._STRIP_W, h, QColor("#1C1C1C"))
             for i in range(120):
-                painter.fillRect(x_strip + 15, 10 + i * 36, 14, 9, hole_color)
+                pr.fillRect(sx + 15, 10 + i * 36, 14, 9, QColor("#0D0D0D"))
 
         # ── parallax posters
         if self._posters:
             ox = max(-1.0, min(1.0, (self._smooth_x - cx) / max(cx, 1)))
             oy = max(-1.0, min(1.0, (self._smooth_y - cy) / max(cy, 1)))
-            for p in self._posters:
-                px = int(p["base_x"] + ox * 30 * p["depth"])
-                py = int(p["base_y"] + oy * 20 * p["depth"])
-                painter.drawPixmap(px, py, p["pixmap"])
+            for item in self._posters:
+                px = int(item["base_x"] + ox * 30 * item["depth"])
+                py = int(item["base_y"] + oy * 20 * item["depth"])
+                pr.drawPixmap(px, py, item["pixmap"])
 
-        # ── text content
-        # Tag line
-        painter.setPen(QColor("#666666"))
-        f_tag = QFont("Trebuchet MS", 11)
-        f_tag.setBold(True)
-        painter.setFont(f_tag)
-        painter.drawText(QRect(0, int(h * 0.33) - 20, w, 40),
-                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-                         "✦  CINEPHILE  ·  YOUR CINEMA UNIVERSE")
+        # ── tag line
+        pr.setPen(QColor("#666666"))
+        f = QFont("Trebuchet MS", 11); f.setBold(True)
+        pr.setFont(f)
+        pr.drawText(QRect(0, int(h * 0.33) - 20, w, 40),
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                    "✦  CINEPHILE  ·  YOUR CINEMA UNIVERSE")
 
-        # Welcome back
-        painter.setPen(QColor("#FFFFFF"))
-        f_wb = QFont("Georgia", 42)
-        f_wb.setBold(True)
-        painter.setFont(f_wb)
-        painter.drawText(QRect(0, int(h * 0.40) - 35, w, 70),
-                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-                         "Welcome back,")
+        # ── "Welcome back,"
+        pr.setPen(QColor("#FFFFFF"))
+        f = QFont("Georgia", 42); f.setBold(True)
+        pr.setFont(f)
+        pr.drawText(QRect(0, int(h * 0.40) - 35, w, 70),
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                    "Welcome back,")
 
-        # Username
-        painter.setPen(QColor("#E8A020"))
-        f_user = QFont("Georgia", 50)
-        f_user.setBold(True)
-        painter.setFont(f_user)
-        painter.drawText(QRect(0, int(h * 0.49) - 40, w, 80),
-                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-                         self.username)
+        # ── username
+        pr.setPen(QColor("#E8A020"))
+        f = QFont("Georgia", 50); f.setBold(True)
+        pr.setFont(f)
+        pr.drawText(QRect(0, int(h * 0.49) - 40, w, 80),
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                    self.username)
 
-        # Stats
+        # ── stats
         stats = self._get_stats()
-        painter.setPen(QColor("#BBBBBB"))
-        f_stats = QFont("Trebuchet MS", 13)
-        painter.setFont(f_stats)
-        stats_text = (f"{stats['films']} films  ·  "
-                      f"{stats['watchlist']} watchlists  ·  "
-                      f"{stats['rating']} avg rating")
-        painter.drawText(QRect(0, int(h * 0.56) - 20, w, 40),
-                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-                         stats_text)
+        pr.setPen(QColor("#BBBBBB"))
+        pr.setFont(QFont("Trebuchet MS", 13))
+        pr.drawText(QRect(0, int(h * 0.56) - 20, w, 40),
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                    f"{stats['films']} films  ·  "
+                    f"{stats['watchlist']} watchlists  ·  "
+                    f"{stats['rating']} avg rating")
 
-        # ── button
+        # ── tombol rounded-rect (setara _rounded_rect + create_polygon tk)
         btn_color = QColor("#C62828") if self._btn_hovered else QColor("#b03535")
         path = QPainterPath()
         path.addRoundedRect(
-            float(self._btn_rect.x()), float(self._btn_rect.y()),
+            float(self._btn_rect.x()),    float(self._btn_rect.y()),
             float(self._btn_rect.width()), float(self._btn_rect.height()),
             24.0, 24.0,
         )
-        painter.fillPath(path, btn_color)
+        pr.fillPath(path, btn_color)
 
-        painter.setPen(QColor("#FFFFFF"))
-        f_btn = QFont("Trebuchet MS", 14)
-        f_btn.setBold(True)
-        painter.setFont(f_btn)
-        painter.drawText(self._btn_rect,
-                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
-                         "▶   Lanjutkan menonton")
+        pr.setPen(QColor("#FFFFFF"))
+        f = QFont("Trebuchet MS", 14); f.setBold(True)
+        pr.setFont(f)
+        pr.drawText(self._btn_rect,
+                    Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                    "▶   Lanjutkan menonton")
 
-        # ── fade-out overlay
+        # ── fade-out overlay (setara stipple rectangle di canvas tk)
         if self._fade_alpha > 0:
-            overlay = QColor(0, 0, 0, min(255, self._fade_alpha))
-            painter.fillRect(self.rect(), overlay)
+            pr.fillRect(self.rect(), QColor(0, 0, 0, min(255, self._fade_alpha)))
 
+    # ── stats ─────────────────────────────────────────────────────────────
     def _get_stats(self) -> dict:
         films = len(getattr(self.app, "movie_list", []))
         wl = 0
@@ -349,37 +365,42 @@ class WelcomeScreen(QWidget):
             pass
         return {"films": films or 250, "watchlist": wl or 12, "rating": "4.9"}
 
+    # ── cleanup ───────────────────────────────────────────────────────────
     def cleanup(self):
+        """Setara WelcomeScreen.destroy() di versi tk — hentikan semua timer."""
         self._parallax_timer.stop()
         self._fade_timer.stop()
 
 
-# ══════════════════════════════════════════════════════════════ MAIN APP
+# ═══════════════════════════════════════════════════════════════ MAIN APP ═
 class MainApp(QMainWindow):
+    """
+    Port 1-to-1 dari MainApp(ctk.CTk).
+    QStackedWidget menggantikan CTkFrame container + winfo_children().destroy().
+    """
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cinephile App")
         self.resize(1100, 850)
-        self.setStyleSheet("background-color: #0D0D0D;")
+        self.setStyleSheet("background-color: #1A1A1A;")
 
         self.db_path  = "data_film.json"
         self.username = "guest"
         self.is_admin = False
+        self.movie_list: list = []
+        self.search_query_pending: str = ""
         self._welcome: WelcomeScreen | None = None
+        self._active_anim = None    # cegah GC animasi aktif
+        self._img_cache: dict = {}  # cache gambar poster (dipakai DashboardPage)
 
-        # ── central stacked widget
+        # QStackedWidget = pengganti self.container (CTkFrame) di versi tk
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
         self._load_local_data()
 
-        # ── lazy-import page modules (still tkinter-based in original project)
-        # Uncomment these when you've ported each page to PyQt6:
-        # from loginPage      import AuthPages
-        # from dashboardCinephile import DashboardPage
-        # …
-
-        # For now, show a placeholder
+        # cek sesi aktif
         active_user = None
         if os.path.exists("session.json"):
             try:
@@ -394,8 +415,9 @@ class MainApp(QMainWindow):
         else:
             self.show_page("login")
 
-    # ────────────────────────────────────────────── data
+    # ── data ──────────────────────────────────────────────────────────────
     def _load_local_data(self):
+        """Setara _load_local_data() di versi tk."""
         if os.path.exists(self.db_path):
             try:
                 with open(self.db_path, encoding="utf-8") as f:
@@ -405,19 +427,11 @@ class MainApp(QMainWindow):
         else:
             self.movie_list = []
 
-        if self.movie_list:
-            t = threading.Thread(target=self._precache_bg, daemon=True)
-            t.start()
-        else:
-            t = threading.Thread(target=self._initialize_data, daemon=True)
-            t.start()
-
-    def _precache_bg(self):
-        """Pre-cache poster di background thread (non-Qt objects only)."""
-        # Worker Qt harus dibuat di main thread – gunakan QTimer one-shot saja.
-        pass   # _on_posters_ready akan dipanggil dari WelcomeScreen._load_posters
+        if not self.movie_list:
+            threading.Thread(target=self._initialize_data, daemon=True).start()
 
     def _initialize_data(self):
+        """Setara _initialize_data() di versi tk."""
         try:
             from scraper import MovieScraper
             scraper = MovieScraper()
@@ -431,104 +445,152 @@ class MainApp(QMainWindow):
         except Exception as e:
             print(f"Scraper error: {e}")
 
-    # ────────────────────────────────────────────── navigation
+    # ── navigasi ──────────────────────────────────────────────────────────
     def show_page(self, page_name: str, data=None):
-        # Bersihkan welcome screen jika ada
+        """
+        Setara show_page() di versi tk.
+        Bersihkan stack → buat halaman baru → tampilkan.
+        """
+        # hancurkan welcome screen bila ada
         if self._welcome:
             self._welcome.cleanup()
             self._welcome = None
 
-        # Hapus semua widget dari stack
+        # hapus semua widget lama (setara: for w in container.winfo_children(): w.destroy())
         while self.stack.count():
             w = self.stack.widget(0)
             self.stack.removeWidget(w)
             w.deleteLater()
 
-        widget = self._build_page(page_name, data)
+        widget = self._make_page(page_name, data)
         if widget:
             self.stack.addWidget(widget)
             self.stack.setCurrentWidget(widget)
+            widget.show()
 
-    def _build_page(self, page_name: str, data=None) -> QWidget | None:
+    def _make_page(self, page_name: str, data=None) -> QWidget | None:
         """
-        Kembalikan QWidget untuk halaman yang diminta.
-        Port setiap halaman dari tkinter → PyQt6 lalu daftarkan di sini.
+        Factory halaman.
+        Tambahkan import halaman yang sudah di-port ke PyQt6 di sini,
+        ganti blok _placeholder() masing-masing.
         """
-        placeholder = QWidget()
-        placeholder.setStyleSheet("background:#0D0D0D;")
-        lbl = QLabel(f"Page: {page_name}\n(Belum di-port ke PyQt6)",
-                     placeholder)
-        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl.setStyleSheet("color:#FFFFFF; font-size:20px;")
-        lbl.resize(self.width(), self.height())
+        if page_name == "dashboard":
+            from dashboardCinephile import DashboardPage
+            return DashboardPage(self.stack, self)
 
-        # TODO: ganti placeholder dengan halaman nyata, contoh:
-        # if page_name == "login":
-        #     from loginPage_qt import LoginPage
-        #     return LoginPage(self)
-        # elif page_name == "dashboard":
-        #     from dashboardCinephile_qt import DashboardPage
-        #     return DashboardPage(self)
+        elif page_name == "login":
+            # from loginPage_qt import LoginPage
+            # return LoginPage(self.stack, self)
+            return _placeholder("Login Page\n(port loginPage.py ke PyQt6)")
 
-        return placeholder
+        elif page_name == "register":
+            # from loginPage_qt import RegisterPage
+            # return RegisterPage(self.stack, self)
+            return _placeholder("Register Page\n(port loginPage.py ke PyQt6)")
 
-    # ────────────────────────────────────────────── welcome transition
+        elif page_name == "profile":
+            # from profilePage_qt import ProfilePage
+            # return ProfilePage(self.stack, self)
+            return _placeholder("Profile Page\n(port profilePage.py ke PyQt6)")
+
+        elif page_name == "movietable":
+            # from movieTable_qt import MovietablePage
+            # return MovietablePage(self.stack, self)
+            return _placeholder("Movie Table\n(port movieTable.py ke PyQt6)")
+
+        elif page_name == "genreanalyze":
+            # from genreAnalyze_qt import GenreAnalyzePage
+            # return GenreAnalyzePage(self.stack, self)
+            return _placeholder("Genre Analyze\n(port genreAnalyze.py ke PyQt6)")
+
+        elif page_name == "moviedetail":
+            # from movieDetail_qt import MovieDetailPage
+            # return MovieDetailPage(self.stack, self, movie_data=data)
+            title = data.get("title", "") if data else ""
+            return _placeholder(f"Movie Detail: {title}\n(port movieDetail.py ke PyQt6)")
+
+        elif page_name == "watchlist":
+            # from watchlist_qt import WatchlistPage
+            # return WatchlistPage(self.stack, self)
+            return _placeholder("Watchlist\n(port watchlist.py ke PyQt6)")
+
+        return None
+
+    # ── welcome transition ────────────────────────────────────────────────
     def show_welcome_transition(self, username: str):
-        """Dipanggil setelah login sukses – tampilkan WelcomeScreen."""
+        """
+        Dipanggil setelah login sukses.
+        Setara show_welcome_transition() di versi tk.
+        """
         self.username = username
-
-        # Sembunyikan stack utama
         self.stack.hide()
 
         welcome = WelcomeScreen(self.centralWidget(), self, username)
         welcome.setGeometry(self.centralWidget().rect())
         welcome.show()
-        welcome.exit_requested.connect(self._welcome_exit)
+        welcome.go_to_dashboard.connect(self._do_welcome_to_dashboard)
         self._welcome = welcome
 
-        # Fade-in window
-        self._fade_window(0.0, 1.0, duration_ms=250)
+        # fade-in window dengan ease-in-out cubic
+        # setara: self.after(80, lambda: self._fadein_welcome(step=0, total=15))
+        self._animate_opacity(0.0, 1.0, duration_ms=240,
+                              easing=QEasingCurve.Type.InOutCubic)
 
-    def _welcome_exit(self):
-        """WelcomeScreen selesai fade-out → pindah ke dashboard."""
+    def _do_welcome_to_dashboard(self):
+        """
+        Setelah fade-out WelcomeScreen selesai → tampilkan dashboard.
+        Setara _do_welcome_to_dashboard() di versi tk.
+        """
         if self._welcome:
             self._welcome.cleanup()
             self._welcome.hide()
+            self._welcome.deleteLater()
             self._welcome = None
 
         self.stack.show()
         self.show_page("dashboard")
-        self._fade_window(0.0, 1.0, duration_ms=350)
 
-    def _fade_window(self, from_alpha: float, to_alpha: float,
-                     duration_ms: int = 250):
-        """Fade opacity seluruh window menggunakan QPropertyAnimation."""
+        # fade-in dashboard dengan ease-out cubic
+        # setara: self.after(40, lambda: self._fadein_dashboard(step=0, total=22))
+        self._animate_opacity(0.0, 1.0, duration_ms=308,
+                              easing=QEasingCurve.Type.OutCubic)
+
+    def _animate_opacity(self, start: float, end: float,
+                         duration_ms: int, easing: QEasingCurve.Type):
+        """
+        Animasi opacity jendela via QPropertyAnimation.
+        Menggantikan loop wm_attributes("-alpha", ...) + after() di versi tk.
+        """
         effect = QGraphicsOpacityEffect(self.centralWidget())
         self.centralWidget().setGraphicsEffect(effect)
 
         anim = QPropertyAnimation(effect, b"opacity", self)
         anim.setDuration(duration_ms)
-        anim.setStartValue(from_alpha)
-        anim.setEndValue(to_alpha)
-        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        anim.setStartValue(start)
+        anim.setEndValue(end)
+        anim.setEasingCurve(easing)
         anim.finished.connect(
             lambda: self.centralWidget().setGraphicsEffect(None)
         )
         anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+        self._active_anim = anim   # cegah GC
 
-    # ────────────────────────────────────────────── utilities
+    # ── utilities ─────────────────────────────────────────────────────────
     def show_toast(self, message: str, target: str | None = None):
+        """Setara show_toast() di versi tk."""
         print(f"Toast: {message}")
         if target:
             self.show_page(target)
 
     def handle_local_search(self, query: str):
+        """Setara handle_local_search() di versi tk."""
         if not query:
             return
         self.search_query_pending = query.lower().strip()
         self.show_page("movietable")
 
     def logout_user(self):
+        """Setara logout_user() di versi tk."""
         if os.path.exists("session.json"):
             try:
                 os.remove("session.json")
@@ -537,27 +599,34 @@ class MainApp(QMainWindow):
         self.username = "guest"
         self.show_page("login")
 
+    # ── resize / close ────────────────────────────────────────────────────
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # Sesuaikan ukuran welcome screen bila window di-resize
         if self._welcome and self._welcome.isVisible():
             self._welcome.setGeometry(self.centralWidget().rect())
 
     def closeEvent(self, event):
-        try:
-            from scraper import MovieScraper
-        except ImportError:
-            pass
+        """Setara on_closing() di versi tk."""
         if self._welcome:
             self._welcome.cleanup()
         super().closeEvent(event)
 
 
-# ══════════════════════════════════════════════════════════════ ENTRY POINT
+# ── helper ────────────────────────────────────────────────────────────────
+def _placeholder(msg: str) -> QWidget:
+    w = QWidget()
+    w.setStyleSheet("background:#0D0D0D;")
+    lbl = QLabel(msg, w)
+    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    lbl.setStyleSheet("color:#AAAAAA; font-size:18px;")
+    lbl.setGeometry(0, 0, 1100, 850)
+    return w
+
+
+# ═══════════════════════════════════════════════════════════════ ENTRY ════
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName("Cinephile")
-
     window = MainApp()
     window.show()
     sys.exit(app.exec())
