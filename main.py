@@ -338,7 +338,6 @@ class MainApp(QMainWindow):
             try:
                 with open("session.json", encoding="utf-8") as f:
                     data = json.load(f)
-                    # Support dua format: {"active_user": ...} atau {"username": ...}
                     active_user = data.get("active_user") or data.get("username")
             except Exception:
                 pass
